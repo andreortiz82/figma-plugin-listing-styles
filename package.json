@@ -1,0 +1,17 @@
+{
+  "name": "Token-List",
+  "version": "1.0.0",
+  "description": "Your Figma Plugin",
+  "main": "code.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "npm run build -- --watch"
+  },
+  "author": "",
+  "license": "",
+  "devDependencies": {
+    "figx": "^0.1.0",
+    "@figma/plugin-typings": "^1.52.0",
+    "typescript": "*"
+  }
+}
