@@ -17,6 +17,7 @@ const createSwatch = (style) => {
     case 'PAINT':
       // code block
       rect.fillStyleId = style.id
+      // rect.opacity = style.opacity
       break;
     case 'EFFECT':
       rect.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
@@ -34,7 +35,7 @@ const createSwatch = (style) => {
       rect.appendChild(mark)
       break;
     default:
-      rect.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]
+      rect.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: 0.45 }]
   }
   return rect;
 }
@@ -61,30 +62,78 @@ const createLabel = ({ value }) => {
   return label;
 }
 
+const typeLabelFormat = (valueType) => {
+  switch (valueType) {
+    case 'PAINT':
+      return 'color:'
+      break;
+    case 'TEXT':
+      return 'text:'
+      break;
+    case 'EFFECT':
+      return 'effect:'
+      break;
+    default:
+      return 'token:'
+      break;
+  }
+}
+
 async function main() {
   await figma.loadFontAsync({ family: "Menlo", style: "Regular" });
+  await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
+  figma.skipInvisibleInstanceChildren = true;
 
-  const groupWrapper = createWrapper({ layout: 'VERTICAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
-  allLocalStyles.forEach(styleGroup => {
-    styleGroup.forEach(style => {
-      const styleWrapper = createWrapper({ layout: 'HORIZONTAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
-      const swatch = createSwatch(style)
-      const label = createLabel({ value: style.name })
-      styleWrapper.itemSpacing = 8;
-      styleWrapper.name = style.name;
-      styleWrapper.appendChild(swatch);
-      styleWrapper.appendChild(label);
-      groupWrapper.appendChild(styleWrapper);
-      // console.log(style.id, style.name, style.type, style.description);
-    });
-  });
+  const groupWrapper = createWrapper({ layout: 'VERTICAL', padding: { t: 0, r: 0, b: 0, l: 0 } })
+  const styleIds = []
+
+  // const elements = figma.currentPage.findAll();
+  const elements = figma.currentPage.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET', 'INSTANCE', 'FRAME', 'TEXT', 'RECTANGLE', 'ELLIPSE'] });
+
+  elements.map((el) => {
+    styleIds.push(el.fillStyleId)
+    styleIds.push(el.strokeStyleId)
+    styleIds.push(el.effectStyleId)
+    styleIds.push(el.textStyleId)
+  })
+
+  let uniqStyleIds = [...new Set(styleIds)];
+
+  return { uniqStyleIds: uniqStyleIds, groupWrapper: groupWrapper }
+}
+
+main().then(({ uniqStyleIds, groupWrapper }) => {
+  let jsonOutput = []
+  const groupTitle = createLabel({ value: "Tokens" })
+  groupTitle.fontName = { family: "Roboto", style: "Bold" }
+  groupTitle.fontSize = 40;
+  groupTitle.resize(200, 56);
+  groupWrapper.appendChild(groupTitle);
+
+  uniqStyleIds.filter((a) => a).map((style) => {
+    const styleObject = figma.getStyleById(style);
+    const styleWrapper = createWrapper({ layout: 'HORIZONTAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
+    const swatch = createSwatch(styleObject)
+    const label = createLabel({ value: styleObject.name })
+    const typeLabel = createLabel({ value: typeLabelFormat(styleObject.type) })
+    const jsonToken = { name: styleObject.name type: styleObject.type, styleId: styleObject.id }
+    jsonOutput.push(jsonToken)
+    typeLabel.fills = [{ type: 'SOLID', color: { r: 0.45, g: 0.45, b: 0.45 } }]
+    typeLabel.resize(70, 24)
+    typeLabel.textAlignVertical = "CENTER";
+    styleWrapper.itemSpacing = 8;
+    styleWrapper.counterAxisAlignItems = "CENTER";
+    styleWrapper.name = styleObject.name;
+    styleWrapper.appendChild(swatch);
+    styleWrapper.appendChild(typeLabel);
+    styleWrapper.appendChild(label);
+    groupWrapper.appendChild(styleWrapper);
+  })
 
   figma.currentPage.appendChild(groupWrapper);
   nodes.push(groupWrapper);
   figma.currentPage.selection = nodes;
   figma.viewport.scrollAndZoomIntoView(nodes);
-}
-
-main().then(() => {
-  figma.closePlugin("Thanks!");
+  // console.log(jsonOutput, JSON.stringify(jsonOutput));
+  figma.closePlugin("Boom Tokens!");
 })
