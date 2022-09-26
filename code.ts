@@ -1,71 +1,90 @@
-const localPaintStyles = figma.getLocalPaintStyles()
+const allLocalStyles = [
+  figma.getLocalPaintStyles(),
+  figma.getLocalTextStyles(),
+  figma.getLocalEffectStyles(),
+  figma.getLocalGridStyles()
+]
+
 const nodes: SceneNode[] = [];
 
-// MAIN PLUGIN CODE
-async function main(): Promise<string | undefined> {
-  // Roboto Regular is the font that objects will be created with by default in
-  // Figma. We need to wait for fonts to load before creating text using them.
-  await figma.loadFontAsync({ family: "Roboto", style: "Regular" })
-  const outputWrapper = figma.createFrame();
-  outputWrapper.layoutMode = "VERTICAL";
-  outputWrapper.primaryAxisSizingMode = "AUTO";
-  outputWrapper.counterAxisSizingMode = "AUTO";
-  outputWrapper.paddingBottom = 8;
-  outputWrapper.paddingLeft = 8;
-  outputWrapper.paddingRight = 8;
-  outputWrapper.paddingTop = 8;
+const createSwatch = (style) => {
+  const rect = figma.createFrame();
+  const size = 24;
+  rect.cornerRadius = 4;
+  rect.resize(size, size);
 
-  for (let i = 0; i < localPaintStyles.length; i++) {
-    console.log(localPaintStyles[i].name)
-    console.log(localPaintStyles[i].paints)
-
-    const keyText = figma.createText()
-    const text = figma.createText()
-    await figma.loadFontAsync(keyText.fontName)
-    await figma.loadFontAsync(text.fontName)
-    text.characters = localPaintStyles[i].name
-    keyText.characters = localPaintStyles[i].type;
-
-    // Set bigger font size and red color
-    keyText.fontSize = 16
-    keyText.x = 0
-    keyText.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]
-    text.fontSize = 16
-    text.x = 0
-    text.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
-
-    const rect = figma.createRectangle();
-    rect.cornerRadius = 4;
-    rect.x = i * 24;
-    rect.resize(16, 16)
-    rect.fills = [{ type: 'SOLID', color: localPaintStyles[i].paints[0].color }];
-
-    const tokenWrapper = figma.createFrame();
-    tokenWrapper.layoutMode = "HORIZONTAL";
-    tokenWrapper.layoutPositioning = "AUTO";
-    tokenWrapper.primaryAxisSizingMode = "AUTO";
-    tokenWrapper.counterAxisSizingMode = "AUTO";
-    tokenWrapper.primaryAxisAlignItems = "CENTER";
-    tokenWrapper.counterAxisAlignItems = "CENTER";
-    tokenWrapper.itemSpacing = 8;
-    tokenWrapper.paddingBottom = 8;
-    tokenWrapper.paddingLeft = 8;
-    tokenWrapper.paddingRight = 8;
-    tokenWrapper.paddingTop = 8;
-
-    tokenWrapper.appendChild(rect)
-    tokenWrapper.appendChild(keyText)
-    tokenWrapper.appendChild(text)
-    outputWrapper.appendChild(tokenWrapper)
+  switch (style.type) {
+    case 'PAINT':
+      // code block
+      rect.fillStyleId = style.id
+      break;
+    case 'EFFECT':
+      rect.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+      rect.effectStyleId = style.id
+      break;
+    case 'TEXT':
+      rect.fills = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 } }]
+      rect.strokeWeight = 2;
+      const mark = createLabel({ value: 'T' });
+      mark.textCase = "UPPER";
+      mark.textAlignHorizontal = "CENTER";
+      mark.textAlignVertical = "CENTER";
+      mark.textAutoResize = "WIDTH_AND_HEIGHT";
+      mark.resize(size, size);
+      rect.appendChild(mark)
+      break;
+    default:
+      rect.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]
   }
+  return rect;
+}
 
-  figma.currentPage.appendChild(outputWrapper);
-  nodes.push(outputWrapper);
+const createWrapper = ({ layout, padding }) => {
+  const wrapper = figma.createFrame();
+  wrapper.layoutMode = layout;
+  wrapper.primaryAxisSizingMode = 'AUTO';
+  wrapper.counterAxisSizingMode = 'AUTO';
+  wrapper.paddingTop = padding.t;
+  wrapper.paddingRight = padding.r;
+  wrapper.paddingBottom = padding.b;
+  wrapper.paddingLeft = padding.l;
+  return wrapper;
+}
 
+const createLabel = ({ value }) => {
+  const label = figma.createText()
+  label.fontName = { family: "Menlo", style: "Regular" }
+  label.characters = value;
+  label.fontSize = 16;
+  label.x = 0;
+  label.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]
+  return label;
+}
+
+async function main() {
+  await figma.loadFontAsync({ family: "Menlo", style: "Regular" });
+
+  const groupWrapper = createWrapper({ layout: 'VERTICAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
+  allLocalStyles.forEach(styleGroup => {
+    styleGroup.forEach(style => {
+      const styleWrapper = createWrapper({ layout: 'HORIZONTAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
+      const swatch = createSwatch(style)
+      const label = createLabel({ value: style.name })
+      styleWrapper.itemSpacing = 8;
+      styleWrapper.name = style.name;
+      styleWrapper.appendChild(swatch);
+      styleWrapper.appendChild(label);
+      groupWrapper.appendChild(styleWrapper);
+      // console.log(style.id, style.name, style.type, style.description);
+    });
+  });
+
+  figma.currentPage.appendChild(groupWrapper);
+  nodes.push(groupWrapper);
   figma.currentPage.selection = nodes;
   figma.viewport.scrollAndZoomIntoView(nodes);
 }
 
-main().then((message: string | undefined) => {
-  figma.closePlugin("Thanks!")
+main().then(() => {
+  figma.closePlugin("Thanks!");
 })
