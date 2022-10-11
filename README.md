@@ -3,3 +3,8 @@
 # Token Listing
 
 Token Listing is a Figma plug that, when run, will list all custom styles being used on a page.
+
+Will list:
+* Colors
+* Typography
+* Effects
