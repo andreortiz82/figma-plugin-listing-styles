@@ -82,13 +82,13 @@ const typeLabelFormat = (valueType) => {
 async function main() {
   await figma.loadFontAsync({ family: "Menlo", style: "Regular" });
   await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
-  figma.skipInvisibleInstanceChildren = true;
 
   const groupWrapper = createWrapper({ layout: 'VERTICAL', padding: { t: 0, r: 0, b: 0, l: 0 } })
+  groupWrapper.name = "Tokens"
   const styleIds = []
 
-  // const elements = figma.currentPage.findAll();
-  const elements = figma.currentPage.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET', 'INSTANCE', 'FRAME', 'TEXT', 'RECTANGLE', 'ELLIPSE'] });
+  figma.skipInvisibleInstanceChildren = true;
+  const elements = figma.currentPage.findAll();
 
   elements.map((el) => {
     styleIds.push(el.fillStyleId)
@@ -114,10 +114,11 @@ main().then(({ uniqStyleIds, groupWrapper }) => {
     const styleObject = figma.getStyleById(style);
     const styleWrapper = createWrapper({ layout: 'HORIZONTAL', padding: { t: 8, r: 8, b: 8, l: 8 } })
     const swatch = createSwatch(styleObject)
-    const label = createLabel({ value: styleObject.name })
-    const typeLabel = createLabel({ value: typeLabelFormat(styleObject.type) })
-    const jsonToken = { name: styleObject.name type: styleObject.type, styleId: styleObject.id }
+    const label = createLabel({ value: styleObject?.name })
+    const typeLabel = createLabel({ value: typeLabelFormat(styleObject?.type) })
+    const jsonToken = { name: styleObject?.name, type: styleObject?.type, styleId: styleObject?.id }
     jsonOutput.push(jsonToken)
+    console.log('styleObject', styleObject)
     typeLabel.fills = [{ type: 'SOLID', color: { r: 0.45, g: 0.45, b: 0.45 } }]
     typeLabel.resize(70, 24)
     typeLabel.textAlignVertical = "CENTER";
@@ -135,5 +136,6 @@ main().then(({ uniqStyleIds, groupWrapper }) => {
   figma.currentPage.selection = nodes;
   figma.viewport.scrollAndZoomIntoView(nodes);
   // console.log(jsonOutput, JSON.stringify(jsonOutput));
+  uniqStyleIds = []
   figma.closePlugin("Boom Tokens!");
 })
